@@ -1,4 +1,6 @@
+import importlib
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -85,13 +87,26 @@ def fake_service():
 
 
 @pytest.fixture
-def client(fake_service):
-    app.dependency_overrides[get_document_service] = lambda: fake_service
+def client(fake_service, monkeypatch):
+    main_module = importlib.import_module("app.main")
 
-    with TestClient(app) as test_client:
-        yield test_client
+    fake_initialize = AsyncMock()
 
-    app.dependency_overrides.clear()
+    monkeypatch.setattr(
+        main_module,
+        "initialize_indexes",
+        fake_initialize,
+    )
+
+    app.dependency_overrides[get_document_service] = (
+        lambda: fake_service
+    )
+
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_create_document_returns_created_document(client):
