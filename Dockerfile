@@ -15,10 +15,14 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 COPY pyproject.toml uv.lock README.md ./
 
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev \
+    && groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid app --home-dir /app --no-create-home app
 
-COPY app ./app
+COPY --chown=app:app app ./app
+
+USER app
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
